@@ -472,12 +472,12 @@
         </div>
 
         <div class="tabs">
-            <button class="tab-button active" onclick="switchTab('overview')">Overview</button>
-            <button class="tab-button" onclick="switchTab('themes')">Research Themes</button>
-            <button class="tab-button" onclick="switchTab('methods')">Methods</button>
-            <button class="tab-button" onclick="switchTab('papers')">Publications</button>
-            <button class="tab-button" onclick="switchTab('trends')">Research Trends</button>
-            <button class="tab-button" onclick="switchTab('network')">Knowledge Graph</button>
+            <button class="tab-button active" onclick="switchTab(event, 'overview')">Overview</button>
+            <button class="tab-button" onclick="switchTab(event, 'themes')">Research Themes</button>
+            <button class="tab-button" onclick="switchTab(event, 'methods')">Methods</button>
+            <button class="tab-button" onclick="switchTab(event, 'papers')">Publications</button>
+            <button class="tab-button" onclick="switchTab(event, 'trends')">Research Trends</button>
+            <button class="tab-button" onclick="switchTab(event, 'network-container')">Knowledge Graph</button>
         </div>
 
         <!-- Overview Tab -->
@@ -838,7 +838,7 @@
           "aromatic": "Recent research on aromatic compounds emphasizes advances in synthesis, heteroatom doping, and applications in materials chemistry, optoelectronics, and catalysis."
         };
 
-        function switchTab(tabName) {
+        function switchTab(event, tabName) {
             // Hide all tabs
             const contents = document.querySelectorAll('.tab-content');
             contents.forEach(content => content.classList.remove('active'));
