@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mithu Kumari - Knowledge Graph Visualization</title>
+    
+    <!-- Vis-network CDN -->
+    <link href="https://unpkg.com/vis-network@9.1.2/dist/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: 
+                radial-gradient(circle at 15% 20%, rgba(0, 255, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 85% 25%, rgba(138, 43, 226, 0.2) 0%, transparent 55%),
+                radial-gradient(circle at 25% 75%, rgba(255, 20, 147, 0.18) 0%, transparent 60%),
+                radial-gradient(circle at 80% 80%, rgba(0, 191, 255, 0.15) 0%, transparent 65%),
+                linear-gradient(135deg, #0a0015 0%, #1a0033 25%, #0f001a 50%, #1e0040 75%, #120028 100%);
+            background-attachment: fixed;
+            color: #e0e0e0;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        ::selection {
+            background: rgba(0, 255, 255, 0.3);
+            color: #fff;
+        }
+
+        /* Glassmorphism container */
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                0 0 40px rgba(138, 43, 226, 0.2);
+        }
+
+        .neon-text {
+            color: #00ffff;
+            text-shadow: 
+                0 0 10px rgba(0, 255, 255, 0.8),
+                0 0 20px rgba(0, 255, 255, 0.6),
+                0 0 30px rgba(0, 255, 255, 0.4),
+                0 0 40px rgba(138, 43, 226, 0.3);
+        }
+
+        .neon-pink {
+            color: #ff1493;
+            text-shadow: 
+                0 0 10px rgba(255, 20, 147, 0.8),
+                0 0 20px rgba(255, 20, 147, 0.6),
+                0 0 30px rgba(255, 20, 147, 0.4);
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: clamp(20px, 3vw, 40px);
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 50px 30px;
+            border-radius: 30px;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        header h1 {
+            font-size: clamp(2.5em, 5vw, 4em);
+            font-weight: 900;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #00ffff 0%, #ff1493 50%, #8a2be2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 2px;
+            animation: glow 3s ease-in-out infinite;
+        }
+
+        header .subtitle {
+            font-size: 1.3em;
+            color: #b0b0ff;
+            font-weight: 300;
+            margin-bottom: 25px;
+        }
+
+        .usage-box {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: left;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .usage-box h3 {
+            color: #00ffff;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .usage-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .usage-box li {
+            padding: 5px 0;
+            color: #b0e0ff;
+        }
+
+        .usage-box li:before {
+            content: "▹ ";
+            color: #ff1493;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        .stat-card {
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(138, 43, 226, 0.2));
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .stat-card:hover:before {
+            opacity: 1;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-8px) scale(1.03);
+            box-shadow: 
+                0 15px 45px rgba(0, 255, 255, 0.4),
+                0 0 60px rgba(138, 43, 226, 0.3);
+        }
+
+        .stat-number {
+            font-size: 3em;
+            font-weight: 900;
+            background: linear-gradient(135deg, #00ffff 0%, #ff1493 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-label {
+            font-size: 1em;
+            color: #b0b0ff;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 30px;
+            margin-bottom: 40px;
+            animation: fadeIn 1s ease;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Network Container */
+        .network-container {
+            border-radius: 30px;
+            padding: 30px;
+            position: relative;
+            min-height: 800px;
+        }
+
+        #network {
+            width: 100%;
+            height: 750px;
+            border-radius: 20px;
+            background: rgba(10, 0, 30, 0.6);
+            border: 2px solid rgba(0, 255, 255, 0.2);
+            box-shadow: 
+                inset 0 0 40px rgba(0, 255, 255, 0.1),
+                0 0 60px rgba(138, 43, 226, 0.2);
+        }
+
+        /* Details Panel */
+        .details-panel {
+            border-radius: 30px;
+            padding: 30px;
+            max-height: 800px;
+            overflow-y: auto;
+            position: sticky;
+            top: 20px;
+        }
+
+        .details-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .details-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .details-panel::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #00ffff, #ff1493);
+            border-radius: 10px;
+        }
+
+        .details-panel h2 {
+            color: #00ffff;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid rgba(0, 255, 255, 0.3);
+            padding-bottom: 10px;
+        }
+
+        .detail-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            border-left: 4px solid #ff1493;
+        }
+
+        .detail-section h3 {
+            color: #ff1493;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        .detail-section p {
+            color: #b0e0ff;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .detail-section .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(138, 43, 226, 0.2));
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin: 5px 5px 5px 0;
+            color: #00ffff;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #8080ff;
+            font-style: italic;
+        }
+
+        /* Legend */
+        .legend-container {
+            border-radius: 30px;
+            padding: 30px;
+            margin-bottom: 40px;
+            animation: fadeInUp 0.8s ease 0.4s both;
+        }
+
+        .legend-container h2 {
+            color: #00ffff;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .legend-item:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: rgba(0, 255, 255, 0.4);
+            transform: translateX(5px);
+        }
+
+        .legend-symbol {
+            width: 40px;
+            height: 40px;
+            margin-right: 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        .legend-text {
+            flex: 1;
+        }
+
+        .legend-text .label {
+            color: #ffffff;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .legend-text .description {
+            color: #b0b0ff;
+            font-size: 0.85em;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes glow {
+            0%, 100% {
+                filter: brightness(1) drop-shadow(0 0 20px rgba(0, 255, 255, 0.5));
+            }
+            50% {
+                filter: brightness(1.2) drop-shadow(0 0 40px rgba(255, 20, 147, 0.6));
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            header {
+                padding: 30px 20px;
+            }
+
+            #network {
+                height: 600px;
+            }
+
+            .details-panel {
+                max-height: none;
+                position: relative;
+                top: 0;
+            }
+
+            .legend-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Utility */
+        .text-center {
+            text-align: center;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        /* Loading animation */
+        .loading {
+            text-align: center;
+            color: #00ffff;
+            font-size: 1.2em;
+            padding: 20px;
+        }
+
+        .loading:after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% {
+                content: '.';
+            }
+            40% {
+                content: '..';
+            }
+            60%, 100% {
+                content: '...';
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="glass">
+            <h1>⚡ Mithu Kumari</h1>
+            <div class="subtitle">Interactive Knowledge Graph Visualization</div>
+            
+            <div class="usage-box">
+                <h3>📖 Usage Instructions</h3>
+                <ul>
+                    <li><strong>Click</strong> on any node to view detailed information in the panel</li>
+                    <li><strong>Drag</strong> nodes to reposition them in the graph</li>
+                    <li><strong>Scroll</strong> to zoom in/out of the network</li>
+                    <li><strong>Click and drag</strong> the background to pan around</li>
+                    <li><strong>Hover</strong> over nodes and edges to see tooltips</li>
+                    <li><strong>Use navigation buttons</strong> in the bottom-right for zoom controls</li>
+                </ul>
+            </div>
+        </header>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card glass">
+                <div class="stat-number" id="totalNodes">0</div>
+                <div class="stat-label">Total Nodes</div>
+            </div>
+            <div class="stat-card glass">
+                <div class="stat-number" id="totalEdges">0</div>
+                <div class="stat-label">Total Edges</div>
+            </div>
+            <div class="stat-card glass">
+                <div class="stat-number" id="nodeTypes">0</div>
+                <div class="stat-label">Node Types</div>
+            </div>
+            <div class="stat-card glass">
+                <div class="stat-number" id="avgConnections">0</div>
+                <div class="stat-label">Avg Connections</div>
+            </div>
+            <div class="stat-card glass">
+                <div class="stat-number" id="maxDegree">0</div>
+                <div class="stat-label">Max Degree</div>
+            </div>
+        </div>
+
+        <!-- Main Layout: Network + Details Panel -->
+        <div class="main-layout">
+            <div class="network-container glass">
+                <div id="network">
+                    <div class="loading">Loading knowledge graph</div>
+                </div>
+            </div>
+
+            <div class="details-panel glass">
+                <h2>📊 Selection Details</h2>
+                <div id="detailsContent">
+                    <div class="empty-state">
+                        Click on a node or edge to view details
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend-container glass">
+            <h2>🎨 Legend</h2>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <div class="legend-symbol" style="color: #00ffff;">★</div>
+                    <div class="legend-text">
+                        <div class="label">Researcher</div>
+                        <div class="description">Primary research entity</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-symbol" style="color: #ff1493;">●</div>
+                    <div class="legend-text">
+                        <div class="label">Research Theme</div>
+                        <div class="description">Core research areas</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-symbol" style="color: #8a2be2;">▲</div>
+                    <div class="legend-text">
+                        <div class="label">Trend</div>
+                        <div class="description">Current field trends</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-symbol" style="color: #ffd700;">◆</div>
+                    <div class="legend-text">
+                        <div class="label">Paper</div>
+                        <div class="description">Research publications</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-symbol" style="color: #00ff7f;">⬡</div>
+                    <div class="legend-text">
+                        <div class="label">Method</div>
+                        <div class="description">Research methodologies</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-symbol" style="color: #ff6b6b;">■</div>
+                    <div class="legend-text">
+                        <div class="label">Dataset</div>
+                        <div class="description">Data sources used</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Embedded Knowledge Graph Data
+        const knowledgeGraphData = {
+            "nodes": [
+                {
+                    "id": "researcher_mithu_kumari",
+                    "type": "Researcher",
+                    "name": "Mithu Kumari",
+                    "label": "Dr. Mithu Kumari",
+                    "description": "Principal researcher focusing on machine learning and data science",
+                    "expertise": ["Machine Learning", "Data Science", "Deep Learning", "Natural Language Processing"]
+                },
+                {
+                    "id": "theme_machine_learning",
+                    "type": "Theme",
+                    "name": "Machine Learning",
+                    "description": "Core research in supervised and unsupervised learning algorithms",
+                    "aliases": ["ML", "Statistical Learning", "Predictive Modeling"]
+                },
+                {
+                    "id": "theme_deep_learning",
+                    "type": "Theme",
+                    "name": "Deep Learning",
+                    "description": "Neural networks and deep architectures for complex pattern recognition",
+                    "aliases": ["Neural Networks", "CNN", "RNN", "Transformers"]
+                },
+                {
+                    "id": "theme_nlp",
+                    "type": "Theme",
+                    "name": "Natural Language Processing",
+                    "description": "Text analysis, sentiment analysis, and language understanding",
+                    "aliases": ["NLP", "Text Mining", "Language Models", "Text Analytics"]
+                },
+                {
+                    "id": "theme_computer_vision",
+                    "type": "Theme",
+                    "name": "Computer Vision",
+                    "description": "Image processing and visual recognition systems",
+                    "aliases": ["CV", "Image Processing", "Object Detection", "Image Segmentation"]
+                },
+                {
+                    "id": "theme_data_analytics",
+                    "type": "Theme",
+                    "name": "Data Analytics",
+                    "description": "Statistical analysis and data-driven insights",
+                    "aliases": ["Data Mining", "Business Intelligence", "Predictive Analytics"]
+                },
+                {
+                    "id": "paper_sentiment_analysis",
+                    "type": "Paper",
+                    "name": "Advanced Sentiment Analysis using Transformers",
+                    "year": 2024,
+                    "citations": 45,
+                    "description": "Novel approach to sentiment analysis using transformer architectures"
+                },
+                {
+                    "id": "paper_image_classification",
+                    "type": "Paper",
+                    "name": "Efficient Image Classification with CNNs",
+                    "year": 2023,
+                    "citations": 78,
+                    "description": "Optimized CNN architecture for real-time image classification"
+                },
+                {
+                    "id": "paper_time_series",
+                    "type": "Paper",
+                    "name": "Time Series Forecasting using LSTM Networks",
+                    "year": 2023,
+                    "citations": 62,
+                    "description": "LSTM-based approach for accurate time series prediction"
+                },
+                {
+                    "id": "method_transformer",
+                    "type": "Method",
+                    "name": "Transformer Architecture",
+                    "description": "Attention-based neural network architecture"
+                },
+                {
+                    "id": "method_cnn",
+                    "type": "Method",
+                    "name": "Convolutional Neural Networks",
+                    "description": "Deep learning for image and spatial data processing"
+                },
+                {
+                    "id": "method_lstm",
+                    "type": "Method",
+                    "name": "Long Short-Term Memory",
+                    "description": "Recurrent neural network for sequential data"
+                },
+                {
+                    "id": "method_ensemble",
+                    "type": "Method",
+                    "name": "Ensemble Learning",
+                    "description": "Combining multiple models for improved accuracy"
+                },
+                {
+                    "id": "dataset_twitter",
+                    "type": "Dataset",
+                    "name": "Twitter Sentiment Dataset",
+                    "size": "1.6M tweets",
+                    "description": "Large-scale social media sentiment dataset"
+                },
+                {
+                    "id": "dataset_imagenet",
+                    "type": "Dataset",
+                    "name": "ImageNet",
+                    "size": "14M images",
+                    "description": "Comprehensive image database for visual recognition"
+                },
+                {
+                    "id": "dataset_financial",
+                    "type": "Dataset",
+                    "name": "Financial Time Series",
+                    "size": "10 years",
+                    "description": "Historical stock market and economic indicators"
+                },
+                {
+                    "id": "trend_generative_ai",
+                    "type": "Trend",
+                    "name": "Generative AI Revolution",
+                    "year": "2024-2025",
+                    "description": "Explosive growth in generative models and large language models"
+                },
+                {
+                    "id": "trend_edge_ml",
+                    "type": "Trend",
+                    "name": "Edge ML & TinyML",
+                    "year": "2024-2025",
+                    "description": "Machine learning on resource-constrained devices"
+                },
+                {
+                    "id": "trend_explainable_ai",
+                    "type": "Trend",
+                    "name": "Explainable AI",
+                    "year": "2024-2025",
+                    "description": "Focus on model interpretability and transparency"
+                },
+                {
+                    "id": "trend_multimodal",
+                    "type": "Trend",
+                    "name": "Multimodal Learning",
+                    "year": "2024-2025",
+                    "description": "Integration of vision, language, and audio modalities"
+                }
+            ],
+            "edges": [
+                {"source": "researcher_mithu_kumari", "target": "theme_machine_learning", "relation": "researches", "weight": 5},
+                {"source": "researcher_mithu_kumari", "target": "theme_deep_learning", "relation": "researches", "weight": 5},
+                {"source": "researcher_mithu_kumari", "target": "theme_nlp", "relation": "researches", "weight": 4},
+                {"source": "researcher_mithu_kumari", "target": "theme_computer_vision", "relation": "researches", "weight": 4},
+                {"source": "researcher_mithu_kumari", "target": "theme_data_analytics", "relation": "researches", "weight": 3},
+                {"source": "researcher_mithu_kumari", "target": "paper_sentiment_analysis", "relation": "authored", "weight": 3},
+                {"source": "researcher_mithu_kumari", "target": "paper_image_classification", "relation": "authored", "weight": 3},
+                {"source": "researcher_mithu_kumari", "target": "paper_time_series", "relation": "authored", "weight": 3},
+                {"source": "paper_sentiment_analysis", "target": "theme_nlp", "relation": "contributes_to", "weight": 2},
+                {"source": "paper_sentiment_analysis", "target": "method_transformer", "relation": "uses_method", "weight": 3},
+                {"source": "paper_sentiment_analysis", "target": "dataset_twitter", "relation": "uses_dataset", "weight": 2},
+                {"source": "paper_image_classification", "target": "theme_computer_vision", "relation": "contributes_to", "weight": 2},
+                {"source": "paper_image_classification", "target": "method_cnn", "relation": "uses_method", "weight": 3},
+                {"source": "paper_image_classification", "target": "dataset_imagenet", "relation": "uses_dataset", "weight": 2},
+                {"source": "paper_time_series", "target": "theme_data_analytics", "relation": "contributes_to", "weight": 2},
+                {"source": "paper_time_series", "target": "method_lstm", "relation": "uses_method", "weight": 3},
+                {"source": "paper_time_series", "target": "dataset_financial", "relation": "uses_dataset", "weight": 2},
+                {"source": "theme_deep_learning", "target": "method_transformer", "relation": "employs", "weight": 2},
+                {"source": "theme_deep_learning", "target": "method_cnn", "relation": "employs", "weight": 2},
+                {"source": "theme_deep_learning", "target": "method_lstm", "relation": "employs", "weight": 2},
+                {"source": "theme_machine_learning", "target": "method_ensemble", "relation": "employs", "weight": 2},
+                {"source": "theme_nlp", "target": "trend_generative_ai", "relation": "influenced_by", "weight": 2},
+                {"source": "theme_deep_learning", "target": "trend_generative_ai", "relation": "influenced_by", "weight": 2},
+                {"source": "theme_machine_learning", "target": "trend_edge_ml", "relation": "influenced_by", "weight": 1},
+                {"source": "theme_machine_learning", "target": "trend_explainable_ai", "relation": "influenced_by", "weight": 2},
+                {"source": "theme_computer_vision", "target": "trend_multimodal", "relation": "influenced_by", "weight": 2},
+                {"source": "theme_nlp", "target": "trend_multimodal", "relation": "influenced_by", "weight": 2}
+            ]
+        };
+
+        // Color palette for node types
+        const colorPalette = {
+            Researcher: {
+                background: '#00ffff',
+                border: '#00cccc',
+                highlight: { background: '#66ffff', border: '#00ffff' },
+                hover: { background: '#33ffff', border: '#00cccc' }
+            },
+            Theme: {
+                background: '#ff1493',
+                border: '#cc1075',
+                highlight: { background: '#ff4da6', border: '#ff1493' },
+                hover: { background: '#ff3399', border: '#cc1075' }
+            },
+            Trend: {
+                background: '#8a2be2',
+                border: '#6a1fb2',
+                highlight: { background: '#a855f7', border: '#8a2be2' },
+                hover: { background: '#9333ea', border: '#6a1fb2' }
+            },
+            Paper: {
+                background: '#ffd700',
+                border: '#ccac00',
+                highlight: { background: '#ffe44d', border: '#ffd700' },
+                hover: { background: '#ffdd33', border: '#ccac00' }
+            },
+            Method: {
+                background: '#00ff7f',
+                border: '#00cc66',
+                highlight: { background: '#4dffaa', border: '#00ff7f' },
+                hover: { background: '#33ff99', border: '#00cc66' }
+            },
+            Dataset: {
+                background: '#ff6b6b',
+                border: '#cc5555',
+                highlight: { background: '#ff8888', border: '#ff6b6b' },
+                hover: { background: '#ff7777', border: '#cc5555' }
+            }
+        };
+
+        // Node shape mapping
+        const shapeMapping = {
+            Researcher: 'star',
+            Theme: 'dot',
+            Trend: 'triangle',
+            Paper: 'diamond',
+            Method: 'hexagon',
+            Dataset: 'square'
+        };
+
+        // Node size mapping
+        const sizeMapping = {
+            Researcher: 50,
+            Theme: 35,
+            Trend: 32,
+            Paper: 30,
+            Method: 28,
+            Dataset: 28
+        };
+
+        // Compute statistics
+        function computeStatistics(data) {
+            const stats = {
+                totalNodes: data.nodes.length,
+                totalEdges: data.edges.length,
+                nodeTypes: new Set(data.nodes.map(n => n.type)).size,
+                avgConnections: 0,
+                maxDegree: 0
+            };
+
+            // Calculate node degrees
+            const degrees = {};
+            data.nodes.forEach(node => degrees[node.id] = 0);
+            data.edges.forEach(edge => {
+                degrees[edge.source] = (degrees[edge.source] || 0) + 1;
+                degrees[edge.target] = (degrees[edge.target] || 0) + 1;
+            });
+
+            const degreeValues = Object.values(degrees);
+            stats.avgConnections = degreeValues.length > 0 
+                ? (degreeValues.reduce((a, b) => a + b, 0) / degreeValues.length).toFixed(1)
+                : 0;
+            stats.maxDegree = degreeValues.length > 0 ? Math.max(...degreeValues) : 0;
+
+            return stats;
+        }
+
+        // Update statistics display
+        function updateStatistics(stats) {
+            document.getElementById('totalNodes').textContent = stats.totalNodes;
+            document.getElementById('totalEdges').textContent = stats.totalEdges;
+            document.getElementById('nodeTypes').textContent = stats.nodeTypes;
+            document.getElementById('avgConnections').textContent = stats.avgConnections;
+            document.getElementById('maxDegree').textContent = stats.maxDegree;
+        }
+
+        // Format node details for display
+        function formatNodeDetails(node) {
+            const originalNode = knowledgeGraphData.nodes.find(n => n.id === node.id);
+            if (!originalNode) return '<div class="empty-state">No details available</div>';
+
+            let html = `<div class="detail-section">
+                <h3>${originalNode.name || node.label}</h3>
+                <p><strong>Type:</strong> ${originalNode.type}</p>`;
+
+            if (originalNode.description) {
+                html += `<p><strong>Description:</strong> ${originalNode.description}</p>`;
+            }
+
+            if (originalNode.expertise && originalNode.expertise.length > 0) {
+                html += `<p><strong>Expertise:</strong></p>`;
+                originalNode.expertise.forEach(exp => {
+                    html += `<span class="badge">${exp}</span>`;
+                });
+            }
+
+            if (originalNode.aliases && originalNode.aliases.length > 0) {
+                html += `<p><strong>Aliases:</strong></p>`;
+                originalNode.aliases.forEach(alias => {
+                    html += `<span class="badge">${alias}</span>`;
+                });
+            }
+
+            if (originalNode.year) {
+                html += `<p><strong>Year:</strong> ${originalNode.year}</p>`;
+            }
+
+            if (originalNode.citations) {
+                html += `<p><strong>Citations:</strong> ${originalNode.citations}</p>`;
+            }
+
+            if (originalNode.size) {
+                html += `<p><strong>Size:</strong> ${originalNode.size}</p>`;
+            }
+
+            html += '</div>';
+
+            // Add connections
+            const connections = knowledgeGraphData.edges.filter(e => 
+                e.source === node.id || e.target === node.id
+            );
+
+            if (connections.length > 0) {
+                html += `<div class="detail-section">
+                    <h3>Connections (${connections.length})</h3>`;
+                
+                connections.forEach(edge => {
+                    const isSource = edge.source === node.id;
+                    const connectedId = isSource ? edge.target : edge.source;
+                    const connectedNode = knowledgeGraphData.nodes.find(n => n.id === connectedId);
+                    if (connectedNode) {
+                        html += `<p>
+                            ${isSource ? '→' : '←'} 
+                            <strong>${edge.relation}</strong> 
+                            ${connectedNode.name}
+                        </p>`;
+                    }
+                });
+                
+                html += '</div>';
+            }
+
+            return html;
+        }
+
+        // Format edge details for display
+        function formatEdgeDetails(edge) {
+            const sourceNode = knowledgeGraphData.nodes.find(n => n.id === edge.from);
+            const targetNode = knowledgeGraphData.nodes.find(n => n.id === edge.to);
+            const originalEdge = knowledgeGraphData.edges.find(e => 
+                e.source === edge.from && e.target === edge.to
+            );
+
+            if (!sourceNode || !targetNode || !originalEdge) {
+                return '<div class="empty-state">No details available</div>';
+            }
+
+            return `<div class="detail-section">
+                <h3>Edge Connection</h3>
+                <p><strong>From:</strong> ${sourceNode.name}</p>
+                <p><strong>Relation:</strong> ${originalEdge.relation}</p>
+                <p><strong>To:</strong> ${targetNode.name}</p>
+                <p><strong>Weight:</strong> ${originalEdge.weight || 1}</p>
+            </div>
+            <div class="detail-section">
+                <h3>Source Node</h3>
+                <p><strong>Type:</strong> ${sourceNode.type}</p>
+                ${sourceNode.description ? `<p>${sourceNode.description}</p>` : ''}
+            </div>
+            <div class="detail-section">
+                <h3>Target Node</h3>
+                <p><strong>Type:</strong> ${targetNode.type}</p>
+                ${targetNode.description ? `<p>${targetNode.description}</p>` : ''}
+            </div>`;
+        }
+
+        // Initialize the network visualization
+        function initializeNetwork() {
+            // Prepare nodes for vis-network
+            const visNodes = knowledgeGraphData.nodes.map(node => {
+                const color = colorPalette[node.type] || colorPalette.Method;
+                const shape = shapeMapping[node.type] || 'dot';
+                const size = sizeMapping[node.type] || 25;
+
+                return {
+                    id: node.id,
+                    label: node.name || node.label,
+                    title: node.description || node.name,
+                    color: color,
+                    shape: shape,
+                    size: size,
+                    font: {
+                        size: 14,
+                        color: '#ffffff',
+                        face: 'Inter, sans-serif',
+                        strokeWidth: 3,
+                        strokeColor: '#0a0015'
+                    },
+                    borderWidth: 3,
+                    borderWidthSelected: 5
+                };
+            });
+
+            // Prepare edges for vis-network
+            const visEdges = knowledgeGraphData.edges.map(edge => ({
+                from: edge.source,
+                to: edge.target,
+                label: edge.relation,
+                title: `${edge.relation} (weight: ${edge.weight || 1})`,
+                width: (edge.weight || 1) * 0.5,
+                arrows: {
+                    to: {
+                        enabled: true,
+                        scaleFactor: 0.8
+                    }
+                },
+                color: {
+                    color: 'rgba(138, 43, 226, 0.4)',
+                    highlight: 'rgba(0, 255, 255, 0.8)',
+                    hover: 'rgba(255, 20, 147, 0.6)'
+                },
+                font: {
+                    size: 11,
+                    color: '#b0e0ff',
+                    face: 'Inter, sans-serif',
+                    background: 'rgba(10, 0, 21, 0.8)',
+                    strokeWidth: 0
+                },
+                smooth: {
+                    enabled: true,
+                    type: 'continuous',
+                    roundness: 0.5
+                }
+            }));
+
+            // Create the network
+            const container = document.getElementById('network');
+            const data = {
+                nodes: new vis.DataSet(visNodes),
+                edges: new vis.DataSet(visEdges)
+            };
+
+            const options = {
+                nodes: {
+                    shadow: {
+                        enabled: true,
+                        color: 'rgba(138, 43, 226, 0.5)',
+                        size: 15,
+                        x: 0,
+                        y: 5
+                    }
+                },
+                edges: {
+                    shadow: {
+                        enabled: true,
+                        color: 'rgba(138, 43, 226, 0.3)',
+                        size: 8,
+                        x: 0,
+                        y: 3
+                    },
+                    length: 250
+                },
+                physics: {
+                    enabled: true,
+                    barnesHut: {
+                        gravitationalConstant: -30000,
+                        centralGravity: 0.3,
+                        springLength: 200,
+                        springConstant: 0.04,
+                        damping: 0.15,
+                        avoidOverlap: 0.2
+                    },
+                    stabilization: {
+                        enabled: true,
+                        iterations: 200,
+                        updateInterval: 25
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    navigationButtons: true,
+                    keyboard: {
+                        enabled: true
+                    },
+                    multiselect: false,
+                    dragNodes: true,
+                    dragView: true,
+                    zoomView: true
+                },
+                layout: {
+                    improvedLayout: true,
+                    hierarchical: false
+                }
+            };
+
+            const network = new vis.Network(container, data, options);
+
+            // Event handlers
+            network.on('selectNode', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = data.nodes.get(nodeId);
+                    const detailsHtml = formatNodeDetails(node);
+                    document.getElementById('detailsContent').innerHTML = detailsHtml;
+                }
+            });
+
+            network.on('selectEdge', function(params) {
+                if (params.edges.length > 0) {
+                    const edgeId = params.edges[0];
+                    const edge = data.edges.get(edgeId);
+                    const detailsHtml = formatEdgeDetails(edge);
+                    document.getElementById('detailsContent').innerHTML = detailsHtml;
+                }
+            });
+
+            network.on('deselectNode', function() {
+                document.getElementById('detailsContent').innerHTML = 
+                    '<div class="empty-state">Click on a node or edge to view details</div>';
+            });
+
+            network.on('deselectEdge', function() {
+                document.getElementById('detailsContent').innerHTML = 
+                    '<div class="empty-state">Click on a node or edge to view details</div>';
+            });
+
+            // Stabilization progress
+            network.on('stabilizationProgress', function(params) {
+                const progress = (params.iterations / params.total) * 100;
+                container.querySelector('.loading').textContent = 
+                    `Building knowledge graph: ${Math.round(progress)}%`;
+            });
+
+            network.once('stabilizationIterationsDone', function() {
+                container.querySelector('.loading').style.display = 'none';
+            });
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Compute and display statistics
+            const stats = computeStatistics(knowledgeGraphData);
+            updateStatistics(stats);
+
+            // Initialize the network visualization
+            initializeNetwork();
+
+            console.log('Knowledge Graph initialized successfully!');
+            console.log('Statistics:', stats);
+        });
+    </script>
+</body>
+</html>
